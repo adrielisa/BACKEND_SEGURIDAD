@@ -1,6 +1,3 @@
-const logger = require('../utils/logger');
-const { AppError } = require('../utils/errors');
-
 // Manejo de errores de desarrollo
 const sendErrorDev = (err, res) => {
   res.status(err.statusCode).json({
@@ -21,7 +18,7 @@ const sendErrorProd = (err, res) => {
     });
   } else {
     // Error de programación: no filtrar detalles
-    logger.error('ERROR 💥', err);
+    console.error('ERROR 💥', err);
     
     res.status(500).json({
       status: 'error',
@@ -36,7 +33,7 @@ const errorHandler = (err, req, res, next) => {
   err.status = err.status || 'error';
 
   // Log del error
-  logger.error({
+  console.error({
     message: err.message,
     statusCode: err.statusCode,
     stack: err.stack,
@@ -53,29 +50,40 @@ const errorHandler = (err, req, res, next) => {
     // Errores específicos de Sequelize
     if (err.name === 'SequelizeValidationError') {
       const messages = err.errors.map(e => e.message);
-      error = new AppError(messages.join(', '), 400);
+      error.message = messages.join(', ');
+      error.statusCode = 400;
+      error.isOperational = true;
     }
     
     if (err.name === 'SequelizeUniqueConstraintError') {
-      error = new AppError('Ya existe un registro con esos datos', 400);
+      error.message = 'Ya existe un registro con esos datos';
+      error.statusCode = 400;
+      error.isOperational = true;
     }
 
     if (err.name === 'SequelizeDatabaseError') {
-      error = new AppError('Error en la base de datos', 500);
+      error.message = 'Error en la base de datos';
+      error.statusCode = 500;
     }
 
     // Errores de JWT
     if (err.name === 'JsonWebTokenError') {
-      error = new AppError('Token inválido', 401);
+      error.message = 'Token inválido';
+      error.statusCode = 401;
+      error.isOperational = true;
     }
     
     if (err.name === 'TokenExpiredError') {
-      error = new AppError('Token expirado', 401);
+      error.message = 'Token expirado';
+      error.statusCode = 401;
+      error.isOperational = true;
     }
 
     // Errores de validación
     if (err.name === 'ValidationError') {
-      error = new AppError(err.message, 400);
+      error.message = err.message;
+      error.statusCode = 400;
+      error.isOperational = true;
     }
 
     sendErrorProd(error, res);
